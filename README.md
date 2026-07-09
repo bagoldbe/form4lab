@@ -1,6 +1,12 @@
 # form4lab
 
-Self-hostable platform for researching SEC Form 4 insider-trading signals: compliant EDGAR ingestion, a look-ahead-free backtester with realistic frictions, pluggable strategy modules, paper-trading execution, and an anti-overfitting research harness. Ships with naive textbook example strategies. It does not ship alpha, and nothing in it is investment advice — see DISCLAIMER.md.
+**form4lab helps you research one question: when the executives and directors who run a public company trade its own stock, does that tell you anything worth acting on?**
+
+U.S. law requires those "insiders" to report their trades to the SEC within a few business days, on a public filing called a [**Form 4**](https://www.sec.gov/about/forms/form4.pdf). This is the *legal, disclosed* kind of insider trading — not the illegal kind you hear about in the news. form4lab collects those filings, organizes them into a database, scores the insiders behind them, and gives you the tools to test trading ideas against history and — if you choose — run them on a simulated brokerage account. You bring the trading idea; form4lab handles the data, the backtesting, and the plumbing.
+
+It comes with a few simple, textbook example strategies to learn from, but it deliberately **does not ship a proven money-making strategy** — that part is up to you.
+
+Under the hood it's a self-hostable app: rate-limit-compliant SEC EDGAR ingestion, a backtester that avoids look-ahead bias and models realistic trading costs, a pluggable strategy interface, optional paper-trading execution, and a research workflow built to stop you from fooling yourself with results that only look good in hindsight.
 
 > **Not investment advice.** form4lab is educational research software. The example strategies it ships are illustrative implementations of published academic heuristics — unvalidated, untuned, and expected to underperform after costs. Read [DISCLAIMER.md](DISCLAIMER.md) before pointing any of this at real money.
 
@@ -67,6 +73,25 @@ form4lab reads configuration from environment variables (or a `.env` file — se
 
 `form4lab/config.py` also exposes nested `Sec` / `Scoring` / `Signal` / `Scheduler` / `Alpaca` settings groups for deeper tuning, each with its own env-var prefix (`SEC_`, `SCORING_`, `SIGNAL_`, `SCHEDULER_`, `ALPACA_` — e.g. `SCORING_ELITE_SKILL_MIN`) and safe, documented defaults. You shouldn't need to touch them to get started.
 
+## Trade execution (optional)
+
+form4lab is first and foremost a research tool — you get the data, signals, dashboard, and backtests **without ever connecting a brokerage.** Live/paper execution is off by default (`ALPACA_ENABLED=false`), and form4lab never places an order unless you explicitly opt in.
+
+When you *do* want to act on signals automatically, the one built-in integration is **[Alpaca](https://alpaca.markets/)**, a US brokerage with a developer API. It's the default for a practical reason: Alpaca offers free **paper trading** — a simulated account funded with fake money — so you can run the entire signal-to-order pipeline and watch how it behaves at zero financial risk. Paper mode stays on by default whenever execution is enabled; placing real orders takes a deliberate `ALPACA_PAPER=false`.
+
+Alpaca is *not* a pluggable interface the way strategies are: form4lab ships a single Alpaca adapter (`form4lab/services/alpaca_service.py`), not a general broker abstraction. Supporting a different broker (Interactive Brokers and the like) means writing your own adapter against that broker's API. If you'd rather not wire up a brokerage at all, just leave execution off and lean on the backtester and research harness — that's the main workflow regardless. (form4lab is an independent project, unaffiliated with Alpaca; see [DISCLAIMER.md](DISCLAIMER.md).)
+
+## Running it continuously (hosting)
+
+The quickstarts above run form4lab on your own machine, which is ideal for trying it out and for research. But the background scheduler only pulls new filings and refreshes signals *while it's actually running* — so to keep form4lab up to date day-to-day, it needs to live somewhere that stays on.
+
+Because it's a standard Docker Compose app with no dependency on any particular provider, you can run it anywhere that runs containers:
+
+- **An always-on machine you control** — a home server or a small Linux VPS. Clone the repo, set your environment variables, `docker compose up -d`, and leave it.
+- **A managed container platform** — for example [Railway](https://railway.app/), [Render](https://render.com/), or [Fly.io](https://fly.io/). These host the container (and a Postgres database) for you; you set the same environment variables (`SEC_IDENTITY`, `STRATEGY_PATH`, and any `ALPACA_*` keys) in the platform's dashboard instead of your shell.
+
+Whichever you choose, make sure the scheduler runs on **exactly one** process — either a single service with `SCHEDULER_ENABLED=true`, or a dedicated `form4lab scheduler` container — so ingestion and scoring jobs fire once instead of being duplicated.
+
 ## Architecture
 
 ```
@@ -86,7 +111,7 @@ SEC EDGAR / Yahoo Finance
         │                 form4lab/services/alert_service.py, form4lab/routes/
         │
         ├──▶ backtest              form4lab/scoring/portfolio_simulator.py
-        ├──▶ paper / live trade    form4lab/services/alpaca_service.py (Alpaca, paper by default)
+        ├──▶ paper / live trade    form4lab/services/alpaca_service.py (optional — Alpaca, paper by default)
         └──▶ research harness      form4lab/research/ (train / validate / locked-test)
 ```
 
