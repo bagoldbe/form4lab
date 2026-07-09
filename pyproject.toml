@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "form4lab"
-version = "0.1.0.dev0"
+version = "0.1.0"
 description = "Self-hostable platform for researching SEC Form 4 insider-trading signals: compliant EDGAR ingestion, look-ahead-free backtesting, pluggable strategies, paper-trading execution, and an anti-overfitting research harness."
 readme = "README.md"
 license = "Apache-2.0"
@@ -45,3 +45,42 @@ packages = ["form4lab"]
 [tool.hatch.build.targets.wheel.force-include]
 "alembic.ini" = "alembic.ini"
 "alembic" = "alembic"
+
+# The sdist target has no `packages` narrowing, so hatchling's default would
+# vacuum up every path the ROOT .gitignore doesn't cover — including untracked
+# scratch dirs such as .superpowers/ (subagent-driven-development review diffs,
+# which embed pre-scrub development history). That is a real leak surface for a
+# public release. Ship an explicit allowlist of tracked project content, and
+# hard-exclude known sensitive/scratch paths as defense-in-depth. Keep
+# `include` in sync with the tracked top-level layout.
+[tool.hatch.build.targets.sdist]
+include = [
+  "/form4lab",
+  "/tests",
+  "/alembic",
+  "/docs",
+  "/scripts",
+  "/docker",
+  "/.github",
+  "/Dockerfile",
+  "/docker-compose.yml",
+  "/.dockerignore",
+  "/alembic.ini",
+  "/pytest.ini",
+  "/pyproject.toml",
+  "/README.md",
+  "/LICENSE",
+  "/NOTICE",
+  "/DISCLAIMER.md",
+  "/SUPPORT.md",
+  "/CONTRIBUTING.md",
+  "/.env.example",
+  "/.gitattributes",
+]
+exclude = [
+  "/.superpowers",
+  "**/leak_audit.local",
+  "**/*.db",
+  "/.env",
+  "**/__pycache__",
+]

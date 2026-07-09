@@ -7,3 +7,7 @@ __pycache__/
 analysis/
 .DS_Store
 scripts/leak_audit.local
+.superpowers/
+dist/
+build/
+*.egg-info/
