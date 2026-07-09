@@ -1,0 +1,90 @@
+<!-- Tradeable signals: annotated with drawdown status -->
+<div style="margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.75rem;">
+        <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary);">
+            Tradeable Signals
+        </h3>
+        <span style="font-size: 0.75rem; color: var(--text-secondary);">last 30 days</span>
+    </div>
+
+    {% if recommendations %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.75rem;">
+        {% for rec in recommendations %}
+        <div class="card" style="padding: 1rem; position: relative; overflow: hidden;
+            border-left: 3px solid {{ '#3fb950' if rec.passes_drawdown else '#8b949e' }};">
+
+            <!-- Top row: ticker + badges -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+                    <a href="/company/{{ rec.ticker }}" style="font-size: 1.3rem; font-weight: 700; color: var(--text-primary); text-decoration: none;">
+                        {{ rec.ticker }}
+                    </a>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary);">{{ rec.company_name[:30] }}</span>
+                </div>
+                <div style="display: flex; gap: 0.3rem;">
+                    {% if rec.drawdown is not none %}
+                    <span style="padding: 3px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.03em;
+                        {% if rec.passes_drawdown %}background: rgba(63,185,80,0.2); color: var(--positive-color);
+                        {% else %}background: rgba(139,148,158,0.15); color: var(--text-secondary);{% endif %}">
+                        &#x25BC; {{ "%.0f"|format(rec.drawdown | abs * 100) }}% FROM HIGH
+                    </span>
+                    {% else %}
+                    <span style="padding: 3px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 700;
+                        background: rgba(139,148,158,0.15); color: var(--text-secondary);">
+                        NO PRICE DATA
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Expected outcome -->
+            <div style="background: rgba(255,255,255,0.04); border-radius: 6px; padding: 0.5rem 0.65rem; margin-bottom: 0.6rem;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+                    <span style="color: var(--text-secondary);">Hold 60 trading days</span>
+                    <span>
+                        <span style="color: var(--positive-color); font-weight: 600;">{{ rec.backtest_win_rate }}</span>
+                        <span style="color: var(--text-secondary);"> win rate,</span>
+                        <span style="color: var(--positive-color); font-weight: 600;">{{ rec.backtest_avg_return }}</span>
+                        <span style="color: var(--text-secondary);"> avg</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Insider info -->
+            <div style="font-size: 0.82rem; margin-bottom: 0.4rem;">
+                <a href="/insider/{{ rec.insider_cik }}" style="color: var(--link-color); text-decoration: none;">{{ rec.insider_name }}</a>
+                <span style="color: var(--text-secondary);"> &middot; {{ rec.role }}</span>
+                <span style="padding: 1px 5px; border-radius: 3px; font-size: 0.7rem; font-weight: 600; margin-left: 0.3rem;
+                    {% if rec.tier == 'Elite' %}background: rgba(255,215,0,0.2); color: var(--elite-color);
+                    {% elif rec.tier == 'Strong' %}background: rgba(63,185,80,0.2); color: var(--strong-color);
+                    {% else %}background: rgba(139,148,158,0.15); color: var(--text-secondary);{% endif %}">
+                    {{ rec.tier }}
+                </span>
+            </div>
+
+            <!-- Transaction details -->
+            <div style="display: flex; gap: 1rem; font-size: 0.78rem; color: var(--text-secondary);">
+                <span>${{ "{:,.0f}".format(rec.transaction_value) if rec.transaction_value else "N/A" }}</span>
+                <span>{{ rec.trade_date.strftime('%b %d') if rec.trade_date else "" }}</span>
+                {% if rec.hit_rate %}
+                <span>{{ "%.0f"|format(rec.hit_rate * 100) }}% personal hit rate</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if drawdown_threshold %}
+    <div style="margin-top: 0.5rem; font-size: 0.7rem; color: var(--text-secondary); font-style: italic;">
+        Signals with &ge;{{ drawdown_threshold }}% drawdown from 52-week high are eligible for trading. Based on backtested data. Not financial advice.
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="card" style="padding: 1.25rem; text-align: center;">
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">
+            No tradeable signals in the last 30 days. Watching for the next opportunity.
+        </p>
+    </div>
+    {% endif %}
+</div>

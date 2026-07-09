@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}{{ company.name if company else ticker }} - form4lab{% endblock %}
+
+{% block content %}
+{% if company %}
+
+<!-- Header -->
+<div style="margin-bottom: 1.5rem;">
+    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+        <h2 style="margin: 0;">{{ company.name }}</h2>
+        {% if company.ticker %}
+        <span style="background: var(--bg-tertiary); color: var(--link-color); padding: 4px 10px; border-radius: 4px; font-weight: 600; font-size: 0.9rem;">{{ company.ticker }}</span>
+        {% endif %}
+    </div>
+    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+        {% if company.sector %}Sector: {{ company.sector }}{% endif %}
+        {% if company.industry %} | Industry: {{ company.industry }}{% endif %}
+        {% if company.cik %} | CIK: {{ company.cik }}{% endif %}
+    </div>
+</div>
+
+<!-- Cluster Highlights -->
+{% if clusters %}
+<div class="card" style="margin-bottom: 1.5rem; border-left: 3px solid #ffd700;">
+    <h3 style="margin-top: 0; margin-bottom: 0.75rem; font-size: 1rem; color: #ffd700;">Cluster Activity Detected</h3>
+    {% for cluster in clusters %}
+    <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; padding: 0.5rem 0; {% if not loop.last %}border-bottom: 1px solid var(--border-color); margin-bottom: 0.5rem;{% endif %}">
+        <div>
+            <span style="color: var(--text-secondary); font-size: 0.8rem;">Week</span>
+            <div style="font-weight: 600;">{{ cluster.week }}</div>
+        </div>
+        <div>
+            <span style="color: var(--text-secondary); font-size: 0.8rem;">Insiders</span>
+            <div style="font-weight: 600; color: #ffd700;">{{ cluster.num_insiders }}</div>
+        </div>
+        <div>
+            <span style="color: var(--text-secondary); font-size: 0.8rem;">Trades</span>
+            <div style="font-weight: 600;">{{ cluster.num_trades }}</div>
+        </div>
+        <div>
+            <span style="color: var(--text-secondary); font-size: 0.8rem;">Total Value</span>
+            <div style="font-weight: 600;">${{ "{:,.0f}".format(cluster.total_value) }}</div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Price Chart -->
+{% if company.ticker %}
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1rem; color: var(--text-secondary);">Price Chart</h3>
+    <div id="company-price-chart" style="width: 100%; height: 400px;"></div>
+</div>
+{% endif %}
+
+<!-- Insider Table -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1rem; color: var(--text-secondary);">Insiders</h3>
+    {% if insider_data %}
+    <div style="overflow-x: auto;">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Tier</th>
+                <th>Skill Score</th>
+                <th>Hit Rate</th>
+                <th>Trades</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for role, insider, score in insider_data %}
+            <tr class="hoverable">
+                <td>
+                    <a href="/insider/{{ insider.cik }}" style="color: var(--link-color); text-decoration: none;">{{ insider.name }}</a>
+                </td>
+                <td style="color: var(--text-secondary);">{{ role.role_title }}</td>
+                <td>
+                    {% if score %}
+                        {% set tier = score.credibility_tier %}
+                        {% include "partials/score_badge.html" %}
+                    {% else %}
+                    <span style="color: var(--text-secondary);">--</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if score %}{{ "%.3f"|format(score.skill_score) }}{% else %}<span style="color: var(--text-secondary);">--</span>{% endif %}
+                </td>
+                <td>
+                    {% if score and score.bayesian_hit_rate is not none %}
+                    {{ "%.1f"|format(score.bayesian_hit_rate * 100) }}%
+                    {% else %}
+                    <span style="color: var(--text-secondary);">--</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if score %}{{ score.num_discretionary_buys }}{% else %}<span style="color: var(--text-secondary);">--</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary); text-align: center; padding: 1rem;">No insider data available for this company.</p>
+    {% endif %}
+</div>
+
+<!-- Recent Activity Timeline -->
+<div class="card">
+    <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1rem; color: var(--text-secondary);">Recent Activity (Last 90 Days)</h3>
+    {% if recent_transactions %}
+    <div style="overflow-x: auto;">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Insider</th>
+                <th>Shares</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for txn, insider in recent_transactions %}
+            <tr>
+                <td style="white-space: nowrap;">{{ txn.transaction_date }}</td>
+                <td>
+                    <a href="/insider/{{ insider.cik }}" style="color: var(--link-color); text-decoration: none;">{{ insider.name }}</a>
+                </td>
+                <td>{{ "{:,.0f}".format(txn.shares) }}</td>
+                <td>{{ "$" + "{:,.0f}".format(txn.total_value) if txn.total_value else "N/A" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary); text-align: center; padding: 1rem;">No recent discretionary buy activity.</p>
+    {% endif %}
+</div>
+
+<!-- Chart Script -->
+{% if company.ticker %}
+<script>
+(function() {
+    fetch('/api/v1/prices/{{ company.ticker }}')
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data && data.length > 0) {
+                // Build transaction markers from ALL buys (not just 90 days)
+                var markers = [];
+                {% if all_transactions %}
+                {% for txn, insider in all_transactions %}
+                markers.push({
+                    time: '{{ txn.transaction_date }}',
+                    position: 'belowBar',
+                    color: '#58a6ff',
+                    shape: 'arrowUp',
+                    text: '{{ insider.name }} ${{ "{:,.0f}".format(txn.total_value) if txn.total_value else "" }}'
+                });
+                {% endfor %}
+                {% endif %}
+
+                initChart('company-price-chart', data, markers);
+            }
+        })
+        .catch(function(err) {
+            console.error('Failed to load price data:', err);
+        });
+})();
+</script>
+{% endif %}
+
+{% else %}
+<p style="color: var(--text-secondary);">Company {{ ticker }} not found.</p>
+{% endif %}
+{% endblock %}

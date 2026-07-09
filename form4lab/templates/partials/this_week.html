@@ -1,0 +1,80 @@
+<div class="card" style="padding: 1rem; margin-bottom: 1.5rem;">
+    <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; color: var(--text-primary);">
+        Recent Activity
+        <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 400; margin-left: 0.5rem;">last 7 days</span>
+        {% if recent_count == 0 %}
+        <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 400; margin-left: 0.25rem;">(showing last 30 days)</span>
+        {% endif %}
+    </h3>
+
+    {% if trades %}
+    <div style="overflow-x: auto;">
+    <table style="font-size: 0.85rem;">
+        <thead>
+            <tr>
+                <th style="padding: 0.4rem 0.5rem;">Date</th>
+                <th style="padding: 0.4rem 0.5rem;">Insider</th>
+                <th style="padding: 0.4rem 0.5rem;">Stock</th>
+                <th style="padding: 0.4rem 0.5rem; text-align: center;">Tier</th>
+                <th style="padding: 0.4rem 0.5rem; text-align: right;">Hit Rate</th>
+                <th style="padding: 0.4rem 0.5rem; text-align: right;">Price</th>
+                <th style="padding: 0.4rem 0.5rem; text-align: right;">Value</th>
+                <th style="padding: 0.4rem 0.5rem;">Signal</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for t in trades %}
+            <tr style="{% if 'sell' in t.alert_type %}background: rgba(248, 81, 73, 0.04);{% endif %}">
+                <td style="padding: 0.4rem 0.5rem; white-space: nowrap; color: var(--text-secondary);">{{ t.trade_date }}</td>
+                <td style="padding: 0.4rem 0.5rem;">
+                    <a href="/insider/{{ t.insider_cik }}" style="color: var(--link-color); text-decoration: none;">{{ t.insider_name[:22] }}</a>
+                    <div style="font-size: 0.7rem; color: var(--text-secondary);">{{ t.role }}</div>
+                </td>
+                <td style="padding: 0.4rem 0.5rem;">
+                    <a href="/company/{{ t.ticker }}" style="color: var(--link-color); text-decoration: none; font-weight: 600;">{{ t.ticker }}</a>
+                </td>
+                <td style="padding: 0.4rem 0.5rem; text-align: center;">
+                    <span style="padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;
+                        {% if t.tier == 'Elite' %}background: rgba(255, 215, 0, 0.2); color: var(--elite-color);
+                        {% elif t.tier == 'Strong' %}background: rgba(63, 185, 80, 0.2); color: var(--strong-color);
+                        {% elif t.tier == 'Average' %}background: rgba(139, 148, 158, 0.2); color: var(--average-color);
+                        {% elif t.tier == 'Weak' %}background: rgba(248, 81, 73, 0.2); color: var(--weak-color);
+                        {% else %}color: var(--text-secondary);{% endif %}">
+                        {{ t.tier }}
+                    </span>
+                </td>
+                <td style="padding: 0.4rem 0.5rem; text-align: right;
+                    {% if t.hit_rate and t.hit_rate > 0.6 %}color: var(--positive-color);
+                    {% elif t.hit_rate and t.hit_rate < 0.4 %}color: var(--negative-color);
+                    {% else %}color: var(--text-primary);{% endif %}">
+                    {{ "%.0f"|format(t.hit_rate * 100) if t.hit_rate else "—" }}%
+                </td>
+                <td style="padding: 0.4rem 0.5rem; text-align: right; color: var(--text-primary);">
+                    {{ "$%.2f"|format(t.price) if t.price else "—" }}
+                </td>
+                <td style="padding: 0.4rem 0.5rem; text-align: right;
+                    {% if 'sell' in t.alert_type %}color: var(--negative-color);{% else %}color: var(--text-primary);{% endif %}">
+                    ${{ "{:,.0f}".format(t.value) if t.value else "—" }}
+                </td>
+                <td style="padding: 0.4rem 0.5rem;">
+                    {% if t.alert_type == 'cluster_buy' %}
+                    <span style="background: rgba(31, 111, 235, 0.2); color: #58a6ff; padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">CLUSTER BUY</span>
+                    {% elif t.alert_type == 'strong_cluster_sell' %}
+                    <span style="background: rgba(248, 81, 73, 0.2); color: var(--negative-color); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">CLUSTER SELL</span>
+                    {% elif t.alert_type == 'strong_large_sell' %}
+                    <span style="background: rgba(210, 153, 34, 0.2); color: #d29922; padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">LARGE SELL</span>
+                    {% elif 'sell' in t.alert_type %}
+                    <span style="background: rgba(139, 148, 158, 0.15); color: var(--text-secondary); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SELL</span>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0; text-align: center; padding: 1rem;">
+        No tradeable signals or sell warnings in the last 30 days.
+    </p>
+    {% endif %}
+</div>

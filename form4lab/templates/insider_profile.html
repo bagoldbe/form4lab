@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}{{ insider.name }} - form4lab{% endblock %}
+
+{% block content %}
+{% if insider %}
+
+<!-- Header -->
+<div style="margin-bottom: 1.5rem;">
+    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+        <h2 style="margin: 0;">{{ insider.name }}</h2>
+        {% if score %}
+            {% set tier = score.credibility_tier %}
+            {% include "partials/score_badge.html" %}
+        {% endif %}
+    </div>
+    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+        CIK: {{ insider.cik }}
+        {% if roles %}
+        <span style="margin-left: 1rem;">
+            {% for role_row in roles %}
+                {% set role = role_row[0] %}
+                {% set company = role_row[1] %}
+                {% if not loop.first %} | {% endif %}
+                {{ role.role_title }} at
+                <a href="/company/{{ company.ticker or '' }}" style="color: var(--link-color); text-decoration: none;">
+                    {{ company.name }}{% if company.ticker %} ({{ company.ticker }}){% endif %}
+                </a>
+            {% endfor %}
+        </span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Score Card -->
+{% if score %}
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1rem; color: var(--text-secondary);">Score Breakdown</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+        <div>
+            <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 2px;">Skill Score</div>
+            <div style="font-size: 1.3rem; font-weight: 600;">{{ "%.3f"|format(score.skill_score) }}</div>
+        </div>
+        <div>
+            <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 2px;">Bayesian Hit Rate (60d)</div>
+            <div style="font-size: 1.3rem; font-weight: 600;">
+                {% if score.bayesian_hit_rate is not none %}
+                {{ "%.1f"|format(score.bayesian_hit_rate * 100) }}%
+                {% else %}N/A{% endif %}
+            </div>
+        </div>
+        <div>
+            <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 2px;">Confidence Above Baseline</div>
+            <div style="font-size: 1.3rem; font-weight: 600;">
+                {% if score.confidence_above_baseline is not none %}
+                {{ "%.1f"|format(score.confidence_above_baseline * 100) }}%
+                {% else %}N/A{% endif %}
+            </div>
+        </div>
+        <div>
+            <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 2px;">Shrunk Excess Return (60d)</div>
+            <div style="font-size: 1.3rem; font-weight: 600;">
+                {% if score.shrunk_excess_return is not none %}
+                <span class="{{ 'positive' if score.shrunk_excess_return >= 0 else 'negative' }}">
+                    {{ "%+.2f"|format(score.shrunk_excess_return * 100) }}%
+                </span>
+                {% else %}N/A{% endif %}
+            </div>
+        </div>
+        <div>
+            <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 2px;">Momentum-Adjusted Excess (60d)</div>
+            <div style="font-size: 1.3rem; font-weight: 600;">
+                {% if score.momentum_adjusted_excess is not none %}
+                <span class="{{ 'positive' if score.momentum_adjusted_excess >= 0 else 'negative' }}">
+                    {{ "%+.2f"|format(score.momentum_adjusted_excess * 100) }}%
+                </span>
+                {% else %}N/A{% endif %}
+            </div>
+        </div>
+        <div>
+            <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 2px;">Credibility Weight</div>
+            <div style="font-size: 1.3rem; font-weight: 600;">{{ "%.3f"|format(score.credibility_weight) }}</div>
+        </div>
+        <div>
+            <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 2px;">Discretionary Buys</div>
+            <div style="font-size: 1.3rem; font-weight: 600;">{{ score.num_discretionary_buys }}</div>
+        </div>
+        <div>
+            <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 2px;">Raw Hit Rate (60d)</div>
+            <div style="font-size: 1.3rem; font-weight: 600;">
+                {% if score.raw_hit_rate is not none %}
+                {{ "%.1f"|format(score.raw_hit_rate * 100) }}%
+                {% else %}N/A{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card" style="margin-bottom: 1.5rem;">
+    <p style="color: var(--text-secondary); margin: 0;">No score computed yet. Run <code>refresh-scores</code> to generate.</p>
+</div>
+{% endif %}
+
+<!-- Price Chart -->
+{% if roles %}
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1rem; color: var(--text-secondary);">Price Chart</h3>
+    <div style="margin-bottom: 0.5rem;">
+        {% for role_row in roles %}
+        {% set company = role_row[1] %}
+        {% if company.ticker %}
+        <button onclick="loadChart('{{ company.ticker }}')"
+                class="chart-ticker-btn"
+                style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; margin-right: 0.25rem;">
+            {{ company.ticker }}
+        </button>
+        {% endif %}
+        {% endfor %}
+    </div>
+    <div id="price-chart" style="width: 100%; height: 400px;"></div>
+</div>
+{% endif %}
+
+<!-- Transaction History -->
+<div class="card">
+    <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1rem; color: var(--text-secondary);">Transaction History (Discretionary Buys)</h3>
+    {% if transactions %}
+    <div style="overflow-x: auto;">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Company</th>
+                <th>Ticker</th>
+                <th>Security</th>
+                <th>Shares</th>
+                <th>Price</th>
+                <th>Value</th>
+                <th>20d Excess</th>
+                <th>60d Excess</th>
+                <th>120d Excess</th>
+                <th>Hit (60d)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for txn_row in transactions %}
+            {% set txn = txn_row[0] %}
+            {% set outcome = txn_row[1] %}
+            {% set company = txn_row[2] %}
+            <tr>
+                <td style="white-space: nowrap;">{{ txn.transaction_date }}</td>
+                <td>
+                    <a href="/company/{{ company.ticker or '' }}" style="color: var(--link-color); text-decoration: none;">
+                        {{ company.name }}
+                    </a>
+                </td>
+                <td>{{ company.ticker or "N/A" }}</td>
+                <td style="font-size: 0.85rem; color: var(--text-secondary);">{{ txn.security_title or "—" }}</td>
+                <td>{{ "{:,.0f}".format(txn.shares) }}</td>
+                <td>{{ "$" + "{:,.2f}".format(txn.price_per_share) if txn.price_per_share else "N/A" }}</td>
+                <td>{{ "$" + "{:,.0f}".format(txn.total_value) if txn.total_value else "N/A" }}</td>
+                {% if outcome %}
+                <td>
+                    {% if outcome.excess_return_20d is not none %}
+                    <span class="{{ 'positive' if outcome.excess_return_20d >= 0 else 'negative' }}">
+                        {{ "%+.1f"|format(outcome.excess_return_20d * 100) }}%
+                    </span>
+                    {% else %}
+                    <span style="color: var(--text-secondary);">--</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if outcome.excess_return_60d is not none %}
+                    <span class="{{ 'positive' if outcome.excess_return_60d >= 0 else 'negative' }}">
+                        {{ "%+.1f"|format(outcome.excess_return_60d * 100) }}%
+                    </span>
+                    {% else %}
+                    <span style="color: var(--text-secondary);">--</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if outcome.excess_return_120d is not none %}
+                    <span class="{{ 'positive' if outcome.excess_return_120d >= 0 else 'negative' }}">
+                        {{ "%+.1f"|format(outcome.excess_return_120d * 100) }}%
+                    </span>
+                    {% else %}
+                    <span style="color: var(--text-secondary);">--</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if outcome.hit_60d is not none %}
+                        {% if outcome.hit_60d %}
+                        <span class="positive" style="font-weight: 600;">HIT</span>
+                        {% else %}
+                        <span class="negative" style="font-weight: 600;">MISS</span>
+                        {% endif %}
+                    {% else %}
+                    <span style="color: var(--text-secondary);">--</span>
+                    {% endif %}
+                </td>
+                {% else %}
+                <td colspan="4" style="color: var(--text-secondary);">No outcome data</td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary); text-align: center; padding: 1rem;">No discretionary buy transactions found.</p>
+    {% endif %}
+</div>
+
+<!-- Chart Script -->
+<script>
+function loadChart(ticker) {
+    fetch('/api/v1/prices/' + ticker)
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data && data.length > 0) {
+                var container = document.getElementById('price-chart');
+                while (container.firstChild) {
+                    container.removeChild(container.firstChild);
+                }
+
+                // Build transaction markers
+                var markers = [];
+                {% if transactions %}
+                {% for txn_row in transactions %}
+                {% set txn = txn_row[0] %}
+                {% set company = txn_row[2] %}
+                {% if company.ticker %}
+                if ('{{ company.ticker }}' === ticker) {
+                    markers.push({
+                        time: '{{ txn.transaction_date }}',
+                        position: 'belowBar',
+                        color: '#58a6ff',
+                        shape: 'arrowUp',
+                        text: 'Buy ${{ "{:,.0f}".format(txn.total_value) if txn.total_value else "" }}'
+                    });
+                }
+                {% endif %}
+                {% endfor %}
+                {% endif %}
+
+                initChart('price-chart', data, markers);
+            }
+        })
+        .catch(function(err) {
+            console.error('Failed to load price data:', err);
+        });
+}
+
+// Auto-load first ticker
+(function() {
+    {% if roles %}
+    {% for role_row in roles %}
+    {% set company = role_row[1] %}
+    {% if company.ticker %}
+    loadChart('{{ company.ticker }}');
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+})();
+</script>
+
+{% else %}
+<p style="color: var(--text-secondary);">Insider with CIK {{ cik }} not found.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,79 @@
+<!-- Performance Scorecard (tradeable signals) -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem;">
+    <div class="card" style="text-align: center; padding: 0.75rem;">
+        <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Tradeable Signals (unfiltered)</div>
+        <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem;">{{ scorecard.total_signals }}</div>
+    </div>
+    <div class="card" style="text-align: center; padding: 0.75rem;">
+        <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Win Rate (60d)</div>
+        <div style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem;
+            {% if scorecard.hit_rate_60d and scorecard.hit_rate_60d > 0.5 %}color: var(--positive-color);
+            {% elif scorecard.hit_rate_60d %}color: var(--negative-color);
+            {% else %}color: var(--text-secondary);{% endif %}">
+            {{ "%.0f"|format(scorecard.hit_rate_60d * 100) if scorecard.hit_rate_60d else "—" }}%
+        </div>
+    </div>
+    <div class="card" style="text-align: center; padding: 0.75rem;">
+        <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Avg Excess Return (60d)</div>
+        <div style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem;
+            {% if scorecard.avg_excess_60d and scorecard.avg_excess_60d > 0 %}color: var(--positive-color);
+            {% elif scorecard.avg_excess_60d %}color: var(--negative-color);
+            {% else %}color: var(--text-secondary);{% endif %}">
+            {{ "%+.1f"|format(scorecard.avg_excess_60d * 100) if scorecard.avg_excess_60d else "—" }}%
+        </div>
+    </div>
+</div>
+
+<!-- C-Suite vs Non-C-Suite breakdown -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 0.6rem 0.75rem;">
+        <div style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem;">C-Suite (CEO, CFO, President...)</div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <span style="font-size: 0.8rem; color: var(--text-secondary);">{{ csuite_scorecard.total_signals }} signals</span>
+            <span style="font-size: 1.1rem; font-weight: 700;
+                {% if csuite_scorecard.hit_rate_60d and csuite_scorecard.hit_rate_60d > 0.5 %}color: var(--positive-color);
+                {% else %}color: var(--text-secondary);{% endif %}">
+                {{ "%.0f"|format(csuite_scorecard.hit_rate_60d * 100) if csuite_scorecard.hit_rate_60d else "—" }}% win
+            </span>
+            <span style="font-size: 1.1rem; font-weight: 700;
+                {% if csuite_scorecard.avg_excess_60d and csuite_scorecard.avg_excess_60d > 0 %}color: var(--positive-color);
+                {% else %}color: var(--text-secondary);{% endif %}">
+                {{ "%+.1f"|format(csuite_scorecard.avg_excess_60d * 100) if csuite_scorecard.avg_excess_60d else "—" }}%
+            </span>
+        </div>
+    </div>
+    <div class="card" style="padding: 0.6rem 0.75rem;">
+        <div style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem;">Non-C-Suite (Directors, VPs...)</div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <span style="font-size: 0.8rem; color: var(--text-secondary);">{{ non_csuite_scorecard.total_signals }} signals</span>
+            <span style="font-size: 1.1rem; font-weight: 700;
+                {% if non_csuite_scorecard.hit_rate_60d and non_csuite_scorecard.hit_rate_60d > 0.5 %}color: var(--positive-color);
+                {% else %}color: var(--text-secondary);{% endif %}">
+                {{ "%.0f"|format(non_csuite_scorecard.hit_rate_60d * 100) if non_csuite_scorecard.hit_rate_60d else "—" }}% win
+            </span>
+            <span style="font-size: 1.1rem; font-weight: 700;
+                {% if non_csuite_scorecard.avg_excess_60d and non_csuite_scorecard.avg_excess_60d > 0 %}color: var(--positive-color);
+                {% else %}color: var(--text-secondary);{% endif %}">
+                {{ "%+.1f"|format(non_csuite_scorecard.avg_excess_60d * 100) if non_csuite_scorecard.avg_excess_60d else "—" }}%
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Backtest credibility banner -->
+<div style="background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(63,185,80,0.06));
+    border: 1px solid rgba(124,58,237,0.2); border-radius: 8px; padding: 0.6rem 1rem;
+    margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+    <span style="font-size: 0.82rem; color: var(--text-secondary);">
+        Tradeable signals backtested over 10 years of historical data
+    </span>
+    <a href="/performance" style="font-size: 0.78rem; color: var(--link-color); text-decoration: none; white-space: nowrap;">
+        View Track Record &rarr;
+    </a>
+</div>
+
+<!-- Signal explanation -->
+<div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1.5rem; padding: 0 0.25rem;">
+    <strong style="color: var(--text-primary);">What is a tradeable signal?</strong>
+    Signals classified tradeable by the active strategy. The exact pattern depends on which strategy module is configured — see form4lab/strategy/base.py for the interface and form4lab/strategies/ for the active implementation.
+</div>

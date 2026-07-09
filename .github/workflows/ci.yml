@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Plain `bash` (not the platform default `sh`-on-Linux-without-pipefail) so
+# every multi-command `run:` step below fails on a non-zero exit ANYWHERE in
+# a pipeline, not just its last command — e.g. `docker compose ps | grep ...`
+# further down must not silently report success if `docker compose ps`
+# itself errored.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: test (pytest + leak audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history, not the default shallow (depth-1) clone. The
+          # `--history` leak-audit step below scans `git log -p HEAD` — on a
+          # depth-1 checkout that walks exactly one commit, which would make
+          # the gate silently near-meaningless (it would "pass" not because
+          # history is clean, but because there'd be no history to look at).
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          # Explicit rather than relying on setup-python's default dependency
+          # glob: this repo pins deps/extras in pyproject.toml only (no
+          # requirements*.txt or lockfile), so name it directly as the cache
+          # key input instead of assuming it's covered by default discovery.
+          cache-dependency-path: pyproject.toml
+
+      - name: Install form4lab (trade, postgres, dev extras)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[trade,postgres,dev]"
+
+      - name: Run test suite (network-dependent "live" SEC EDGAR tests deselected)
+        run: SEC_IDENTITY="ci ci@example.com" python -m pytest tests/ -q -m "not live"
+
+      # CI has no scripts/leak_audit.local — it's gitignored (see
+      # .gitignore / leak_audit.py's own module docstring), so it never
+      # reaches a checkout here. That means the two runs below only ever
+      # apply HARD_FAIL (the generic, project-agnostic secret-shape
+      # patterns committed in leak_audit.py itself), never LOCAL_FAIL. That
+      # is the correct scope for a shared CI job: the operator-private
+      # patterns in leak_audit.local encode the operator's own pre-publish vocabulary
+      # review and are deliberately kept off every clone/fork/PR checkout,
+      # not just this one.
+      - name: Leak audit (working tree)
+        run: python scripts/leak_audit.py
+
+      - name: Leak audit (commit history)
+        run: python scripts/leak_audit.py --history
+
+  docker:
+    name: docker (compose build + up --wait + smoke)
+    runs-on: ubuntu-latest
+    # Job-level (not per-step) so it's visible to every step's shell AND to
+    # docker-compose.yml's own `${SEC_IDENTITY:?...}` interpolation — compose
+    # reads interpolation variables from the environment it's invoked in,
+    # and that interpolation runs on every `docker compose` subcommand
+    # (build, up, ps, logs, down), not just `up`. A dummy CI-only value:
+    # SEC EDGAR requires a real name+email identity in production, but never
+    # sees traffic from this job (no ingestion command runs in the smoke
+    # test below), so the placeholder is fine here and must never be a real
+    # identity.
+    env:
+      SEC_IDENTITY: "ci ci@example.com"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build images
+        run: docker compose build
+
+      - name: Start stack and wait for health
+        run: |
+          # `--wait` (compose v2) blocks until every service with a
+          # healthcheck reports healthy (db, web) and every service without
+          # one reports running (scheduler), or fails after the timeout.
+          # This is the primary path. If it isn't reliable on this runner's
+          # compose version, fall back to a manual poll against the web
+          # healthcheck route for up to ~90s instead of failing outright —
+          # the scheduler startup log line can race container start, so a soft
+          # fallback beats a hard dependency on --wait behaving perfectly
+          # the very first time.
+          if docker compose up -d --wait --wait-timeout 90; then
+            echo "docker compose up --wait: all services healthy/running."
+          else
+            echo "::warning::'docker compose up --wait' did not report healthy in time; falling back to a manual poll of the web healthcheck route."
+            docker compose ps
+            healthy=""
+            attempts=18
+            for i in $(seq 1 "$attempts"); do
+              if curl -fsS http://localhost:8000/partials/recommendations >/dev/null 2>&1; then
+                healthy=1
+                echo "web became healthy on attempt $i/$attempts"
+                break
+              fi
+              echo "web not ready yet (attempt $i/$attempts) — sleeping 5s"
+              sleep 5
+            done
+            if [ -z "$healthy" ]; then
+              echo "::error::web did not become healthy within ~90s"
+              docker compose ps
+              docker compose logs
+              exit 1
+            fi
+          fi
+
+      - name: Smoke test - recommendations endpoint returns 200
+        run: curl -fsS http://localhost:8000/partials/recommendations
+
+      - name: Verify scheduler service is running (not crash-looping)
+        run: |
+          docker compose ps
+          docker compose ps --status running | grep -q scheduler
+          # Informational only (never fails the job): confirms the scheduler
+          # actually reached its job-registration startup line, not merely
+          # that the container process is alive. form4lab/cli.py's
+          # standalone `scheduler` command prints this once `sched.start()`
+          # succeeds.
+          if docker compose logs scheduler | grep -qi "scheduler started"; then
+            echo "found 'scheduler started' in scheduler logs"
+          else
+            echo "::warning::'scheduler started' not found in scheduler logs (non-fatal)"
+          fi
+
+      - name: Dump diagnostics
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

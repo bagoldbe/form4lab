@@ -1,0 +1,108 @@
+:root {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #21262d;
+  --text-primary: #c9d1d9;
+  --text-secondary: #8b949e;
+  --border-color: #30363d;
+  --link-color: #58a6ff;
+
+  /* Tier colors */
+  --elite-color: #ffd700;
+  --strong-color: #3fb950;
+  --average-color: #8b949e;
+  --weak-color: #f85149;
+
+  /* Signal type colors */
+  --signal-drawdown: #dc2626;
+  --signal-cluster: #1f6feb;
+
+  /* Semantic colors */
+  --positive-color: #3fb950;
+  --negative-color: #f85149;
+
+  /* Spacing tokens */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+nav {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: var(--space-sm) var(--space-md);
+}
+
+nav a {
+  color: var(--text-primary);
+  text-decoration: none;
+  margin-right: var(--space-lg);
+}
+
+nav a:hover {
+  color: var(--link-color);
+}
+
+.positive { color: var(--positive-color); }
+.negative { color: var(--negative-color); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: var(--space-sm);
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+th {
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+th:hover {
+  color: var(--text-primary);
+}
+
+/* Hoverable table rows — replaces inline onmouseover/onmouseout */
+tr.hoverable:hover {
+  background: var(--bg-tertiary);
+}
+
+/* Hoverable cards — replaces inline onmouseover/onmouseout */
+.card-hoverable {
+  transition: border-color 0.15s ease;
+}
+
+.card-hoverable:hover {
+  border-color: var(--link-color);
+}
+
+/* Responsive table wrapper for horizontal scrolling on mobile */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .table-responsive table {
+    min-width: 600px;
+  }
+}

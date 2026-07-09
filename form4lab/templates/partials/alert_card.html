@@ -1,0 +1,127 @@
+<div class="card card-hoverable" style="cursor: pointer;"
+     {% if insider %}hx-get="/partials/insider-detail/{{ insider.cik }}" hx-target="#detail-{{ alert.id }}" hx-swap="innerHTML"{% endif %}>
+
+    <!-- Header row: insider name, role, company -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+        <div>
+            {% if insider %}
+            <a href="/insider/{{ insider.cik }}" style="color: var(--link-color); text-decoration: none; font-weight: 600; font-size: 1.05rem;"
+               onclick="event.stopPropagation();">{{ insider.name }}</a>
+            {% else %}
+            <span style="color: var(--text-primary); font-weight: 600;">Unknown Insider</span>
+            {% endif %}
+
+            {% if company %}
+            <span style="color: var(--text-secondary); margin-left: 0.5rem;">at</span>
+            <a href="/company/{{ company.ticker or '' }}" style="color: var(--link-color); text-decoration: none;"
+               onclick="event.stopPropagation();">{{ company.name }}{% if company.ticker %} ({{ company.ticker }}){% endif %}</a>
+            {% endif %}
+        </div>
+
+        <!-- Score badge -->
+        {% if score %}
+            {% set tier = score.credibility_tier %}
+            {% include "partials/score_badge.html" %}
+        {% endif %}
+    </div>
+
+    <!-- Transaction details -->
+    <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 0.75rem; font-size: 0.9rem;">
+        <div>
+            <span style="color: var(--text-secondary);">Value:</span>
+            <span style="color: var(--text-primary); font-weight: 500;">
+                ${{ "{:,.0f}".format(alert.transaction_value) if alert.transaction_value else "N/A" }}
+            </span>
+        </div>
+        <div>
+            <span style="color: var(--text-secondary);">Date:</span>
+            <span style="color: var(--text-primary);">{{ alert.trade_date.strftime('%Y-%m-%d') if alert.trade_date else (alert.created_at.strftime('%Y-%m-%d') if alert.created_at else "N/A") }}</span>
+        </div>
+        <div>
+            <span style="color: var(--text-secondary);">Type:</span>
+            <span style="color: var(--text-primary);">{{ alert.alert_type | replace('_', ' ') | title }}</span>
+        </div>
+        {% if alert.alert_type == 'cluster_buy' %}
+        <div>
+            <span style="background: #1f6feb; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">CLUSTER BUY</span>
+        </div>
+        {% endif %}
+        {% if alert.cluster_id %}
+        <div>
+            <span style="background: #1f6feb; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">CLUSTER</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Key stats row -->
+    {% if score %}
+    <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 0.75rem; font-size: 0.85rem;">
+        <div>
+            <span style="color: var(--text-secondary);">Hit Rate:</span>
+            <span style="color: var(--text-primary);">
+                {{ "%.1f"|format(score.bayesian_hit_rate * 100) if score.bayesian_hit_rate else "N/A" }}%
+            </span>
+        </div>
+        <div>
+            <span style="color: var(--text-secondary);">Avg Excess:</span>
+            {% if score.shrunk_excess_return is not none %}
+            <span class="{{ 'positive' if score.shrunk_excess_return >= 0 else 'negative' }}">
+                {{ "%+.1f"|format(score.shrunk_excess_return * 100) }}%
+            </span>
+            {% else %}
+            <span style="color: var(--text-secondary);">N/A</span>
+            {% endif %}
+        </div>
+        <div>
+            <span style="color: var(--text-secondary);">Buys:</span>
+            <span style="color: var(--text-primary);">{{ score.num_discretionary_buys }}</span>
+        </div>
+        <div>
+            <span style="color: var(--text-secondary);">Skill:</span>
+            <span style="color: var(--text-primary);">{{ "%.3f"|format(score.skill_score) }}</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Conviction score (normalized 1-5) -->
+    <div style="margin-top: 0.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="color: var(--text-secondary); font-size: 0.8rem;"
+                  title="Ranked against all signals this period based on insider credibility, role seniority, and transaction size">Conviction</span>
+            {% set cd = item.conviction_display if item is mapping and item.conviction_display is defined else 3 %}
+            {% set cl = item.conviction_label if item is mapping and item.conviction_label is defined else "" %}
+            <span style="font-weight: 600; font-size: 0.9rem;
+                {% if cd >= 5 %}color: #ffd700;
+                {% elif cd >= 4 %}color: #3fb950;
+                {% elif cd >= 3 %}color: #8b949e;
+                {% else %}color: #f85149;{% endif %}">
+                {{ cd }} &mdash; {{ cl }}
+            </span>
+        </div>
+        <div style="background: var(--bg-tertiary); border-radius: 4px; height: 6px; overflow: hidden;">
+            <div style="height: 100%; border-radius: 4px; width: {{ (cd * 20)|int }}%;
+                {% if cd >= 5 %}background: #ffd700;
+                {% elif cd >= 4 %}background: #3fb950;
+                {% elif cd >= 3 %}background: #8b949e;
+                {% else %}background: #f85149;{% endif %}">
+            </div>
+        </div>
+    </div>
+
+    <!-- Hold period guidance -->
+    {% set hold_days = 60 %}
+    {% set hold_months = "~3 months" %}
+    {% if alert.alert_type != 'filtered_out' %}
+    <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.4rem;">
+        <span>Hold: <strong style="color: var(--text-primary);">{{ hold_days }} trading days</strong> ({{ hold_months }})</span>
+    </div>
+    {% endif %}
+
+    <!-- Summary -->
+    <div style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">
+        {{ alert.summary }}
+    </div>
+
+    <!-- Expandable detail area -->
+    <div id="detail-{{ alert.id }}"></div>
+</div>

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="text-align: center; padding: 4rem;">
+  <h1 style="font-size: 4rem; color: #f85149;">404</h1>
+  <p style="color: #8b949e; font-size: 1.2rem;">{{ message | default("Page not found") }}</p>
+  <a href="/" style="color: var(--link-color);">Back to Dashboard</a>
+</div>
+{% endblock %}

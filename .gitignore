@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.venv/
+*.db
+.env
+.pytest_cache/
+analysis/
+.DS_Store
+scripts/leak_audit.local

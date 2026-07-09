@@ -1,0 +1,57 @@
+<div class="card" style="padding: 1rem; margin-bottom: 1.5rem;">
+    <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; color: var(--negative-color);">
+        Sell Warnings
+        <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 400; margin-left: 0.5rem;">last 30 days</span>
+    </h3>
+
+    {% if warnings %}
+    <div style="overflow-x: auto;">
+    <table style="font-size: 0.85rem;">
+        <thead>
+            <tr>
+                <th style="padding: 0.4rem 0.5rem;">Date</th>
+                <th style="padding: 0.4rem 0.5rem;">Insider</th>
+                <th style="padding: 0.4rem 0.5rem;">Stock</th>
+                <th style="padding: 0.4rem 0.5rem;">Type</th>
+                <th style="padding: 0.4rem 0.5rem; text-align: right;">Value</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for w in warnings %}
+            <tr>
+                <td style="padding: 0.4rem 0.5rem; white-space: nowrap; color: var(--text-secondary);">{{ w.trade_date }}</td>
+                <td style="padding: 0.4rem 0.5rem;">
+                    <a href="/insider/{{ w.insider_cik }}" style="color: var(--link-color); text-decoration: none;">{{ w.insider_name[:22] }}</a>
+                    <div style="font-size: 0.7rem; color: var(--text-secondary);">{{ w.role }}</div>
+                </td>
+                <td style="padding: 0.4rem 0.5rem;">
+                    <a href="/company/{{ w.ticker }}" style="color: var(--link-color); text-decoration: none; font-weight: 600;">{{ w.ticker }}</a>
+                </td>
+                <td style="padding: 0.4rem 0.5rem;">
+                    {% if w.alert_type == 'strong_cluster_sell' %}
+                    <span style="background: rgba(248, 81, 73, 0.2); color: var(--negative-color); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">CLUSTER SELL</span>
+                    {% elif w.alert_type == 'strong_large_sell' %}
+                    <span style="background: rgba(210, 153, 34, 0.2); color: #d29922; padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">LARGE SELL</span>
+                    {% else %}
+                    <span style="background: rgba(139, 148, 158, 0.15); color: var(--text-secondary); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SELL</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 0.4rem 0.5rem; text-align: right; color: var(--negative-color);">
+                    ${{ "{:,.0f}".format(w.value) if w.value else "—" }}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+
+    <div style="margin-top: 0.5rem; font-size: 0.7rem; color: var(--text-secondary); font-style: italic;">
+        Sell warnings flag stocks to avoid, not short. Only credible (Elite/Strong tier) insider sells are shown.
+    </div>
+
+    {% else %}
+    <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0; text-align: center; padding: 1rem;">
+        No sell warnings in the last 30 days.
+    </p>
+    {% endif %}
+</div>

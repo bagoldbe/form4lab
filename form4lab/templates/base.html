@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}form4lab{% endblock %}</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@2.0.6/css/pico.min.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css?v={{ asset_version }}">
+    {% block head %}{% endblock %}
+    <style>
+      .htmx-indicator { display: none; }
+      .htmx-request .htmx-indicator { display: inline-block; }
+      .htmx-request.htmx-indicator { display: inline-block; }
+      .spinner {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid var(--text-secondary);
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <nav aria-label="Main navigation">
+        <div class="container">
+            <strong style="color: var(--link-color); margin-right: var(--space-xl);">form4lab</strong>
+            <a href="/">Dashboard</a>
+            <a href="/performance">Performance</a>
+            <span style="font-size: 0.7rem; color: var(--text-secondary); margin-left: auto; opacity: 0.7;">PAPER TRADING</span>
+        </div>
+    </nav>
+    <main class="container" style="margin-top: 1rem;" role="main">
+        {% block content %}{% endblock %}
+    </main>
+    <script src="/static/js/charts.js?v={{ asset_version }}"></script>
+</body>
+</html>

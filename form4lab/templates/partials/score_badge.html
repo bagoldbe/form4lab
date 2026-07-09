@@ -1,0 +1,11 @@
+{% if tier == "Elite" %}
+<span style="background: #ffd700; color: #000; padding: 2px 8px; border-radius: 4px; font-weight: bold;">Elite</span>
+{% elif tier == "Strong" %}
+<span style="background: #3fb950; color: #000; padding: 2px 8px; border-radius: 4px; font-weight: bold;">Strong</span>
+{% elif tier == "Average" %}
+<span style="background: #8b949e; color: #000; padding: 2px 8px; border-radius: 4px;">Average</span>
+{% elif tier == "Weak" %}
+<span style="background: #f85149; color: #fff; padding: 2px 8px; border-radius: 4px;">Weak</span>
+{% else %}
+<span style="background: #30363d; color: #8b949e; padding: 2px 8px; border-radius: 4px;">Insufficient <span style="font-weight: 400; font-size: 0.7rem;">(&lt; 3 trades)</span></span>
+{% endif %}

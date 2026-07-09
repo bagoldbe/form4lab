@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+
+{% block title %}Performance - form4lab{% endblock %}
+
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+{% endblock %}
+
+{% block content %}
+{% if metrics %}
+
+<!-- Headline -->
+<div style="margin-bottom: 1.5rem;">
+    <h2 style="margin: 0 0 0.25rem 0;">Track Record</h2>
+    <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0;">
+        Portfolio simulation: ${{ "{:,.0f}".format(metrics.initial_cash) }} starting capital, 60-day hold.
+        Position sizing, margin, and idle-cash parking follow your configured settings — see .env.example.
+        {% if metrics.first_date and metrics.last_date %}
+        Period: {{ metrics.first_date }} to {{ metrics.last_date }}.
+        {% endif %}
+        {% if metrics.generated_at %}
+        <span style="color: var(--text-secondary);">Generated {{ metrics.generated_at[:10] }}.</span>
+        {% endif %}
+    </p>
+</div>
+
+<!-- Scorecard -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem;">
+    <div class="card" style="text-align: center; padding: 0.75rem;">
+        <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Total Return</div>
+        <div style="font-size: 1.6rem; font-weight: 700; color: var(--positive-color); margin-top: 0.25rem;">
+            {{ "{:+.0f}".format(metrics.total_return * 100) }}%
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-secondary);">
+            ${{ "{:,.0f}".format(metrics.initial_cash) }} &rarr; ${{ "{:,.0f}".format(metrics.final_value) }}
+        </div>
+    </div>
+    <div class="card" style="text-align: center; padding: 0.75rem;">
+        <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">vs S&amp;P 500</div>
+        <div style="font-size: 1.6rem; font-weight: 700; margin-top: 0.25rem;
+            {% if metrics.spy_return and metrics.total_return > metrics.spy_return %}color: var(--positive-color);
+            {% else %}color: var(--negative-color);{% endif %}">
+            {% if metrics.spy_return is not none %}
+            {{ "{:+.0f}".format((metrics.total_return - metrics.spy_return) * 100) }}%
+            {% else %}—{% endif %}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-secondary);">
+            {% if metrics.spy_return is not none %}
+            SPY: {{ "{:+.0f}".format(metrics.spy_return * 100) }}%
+            {% endif %}
+        </div>
+    </div>
+    <div class="card" style="text-align: center; padding: 0.75rem;">
+        <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">CAGR</div>
+        <div style="font-size: 1.6rem; font-weight: 700; color: var(--positive-color); margin-top: 0.25rem;">
+            {{ "{:.1f}".format(metrics.cagr * 100) }}%
+        </div>
+    </div>
+    <div class="card" style="text-align: center; padding: 0.75rem;">
+        <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Win Rate</div>
+        <div style="font-size: 1.6rem; font-weight: 700; margin-top: 0.25rem;
+            {% if metrics.win_rate > 0.6 %}color: var(--positive-color);
+            {% elif metrics.win_rate > 0.5 %}color: var(--text-primary);
+            {% else %}color: var(--negative-color);{% endif %}">
+            {{ "{:.0f}".format(metrics.win_rate * 100) }}%
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ metrics.total_trades }} trades</div>
+    </div>
+    <div class="card" style="text-align: center; padding: 0.75rem;">
+        <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Profit Factor</div>
+        <div style="font-size: 1.6rem; font-weight: 700; margin-top: 0.25rem;
+            {% if metrics.profit_factor > 2 %}color: var(--positive-color);
+            {% elif metrics.profit_factor > 1 %}color: var(--text-primary);
+            {% else %}color: var(--negative-color);{% endif %}">
+            {{ "{:.2f}".format(metrics.profit_factor) }}
+        </div>
+    </div>
+</div>
+
+<!-- Equity Curve Chart -->
+<div class="card" style="padding: 1rem; margin-bottom: 1.5rem;">
+    <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem;">Portfolio vs S&amp;P 500</h3>
+    <div id="equity-chart" style="width: 100%; height: 420px;"></div>
+</div>
+
+<!-- % Invested Chart -->
+<div class="card" style="padding: 1rem; margin-bottom: 1.5rem;">
+    <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem;">Capital Deployment</h3>
+    <div id="invested-chart" style="width: 100%; height: 280px;"></div>
+</div>
+
+<!-- Additional Stats -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1rem;">
+        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: var(--text-secondary);">Risk Metrics</h4>
+        <div style="font-size: 0.85rem;">
+            <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid var(--border-color);">
+                <span style="color: var(--text-secondary);">Max Drawdown <span style="font-size: 0.7rem;">(single run)</span></span>
+                <span style="color: var(--negative-color); font-weight: 600;">{{ "{:.1f}".format(metrics.max_drawdown * 100) }}%</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid var(--border-color);">
+                <span style="color: var(--text-secondary);">Sharpe Ratio</span>
+                <span style="color: var(--text-primary); font-weight: 600;">{{ "{:.2f}".format(metrics.sharpe) }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 0.3rem 0;">
+                <span style="color: var(--text-secondary);">Avg Loss</span>
+                <span style="color: var(--negative-color);">{{ "{:.1f}".format(metrics.avg_loss * 100) }}%</span>
+            </div>
+        </div>
+    </div>
+    <div class="card" style="padding: 1rem;">
+        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: var(--text-secondary);">Trade Stats</h4>
+        <div style="font-size: 0.85rem;">
+            <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid var(--border-color);">
+                <span style="color: var(--text-secondary);">Total Trades</span>
+                <span style="color: var(--text-primary); font-weight: 600;">{{ metrics.total_trades }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid var(--border-color);">
+                <span style="color: var(--text-secondary);">Avg Win</span>
+                <span style="color: var(--positive-color);">{{ "{:+.1f}".format(metrics.avg_win * 100) }}%</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 0.3rem 0;">
+                <span style="color: var(--text-secondary);">Force Closed</span>
+                <span style="color: var(--text-secondary);">{{ metrics.force_closed }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trade History -->
+{% if trade_log_json != "null" %}
+<div class="card" style="padding: 1rem; margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+        <h3 style="margin: 0; font-size: 1rem;">Trade History</h3>
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="ticker-search" placeholder="Search ticker..."
+                   style="padding: 0.3rem 0.5rem; font-size: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary); width: 120px;">
+            <select id="outcome-filter" style="padding: 0.3rem 0.5rem; font-size: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary);">
+                <option value="all">All Trades</option>
+                <option value="winners">Winners</option>
+                <option value="losers">Losers</option>
+            </select>
+        </div>
+    </div>
+    <div id="trade-count" style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;"></div>
+    <div class="table-responsive">
+        <table id="trade-table" style="font-size: 0.8rem; width: 100%;">
+            <thead>
+                <tr>
+                    <th data-sort="ticker" style="padding: 0.4rem 0.5rem; cursor: pointer; user-select: none; white-space: nowrap;">Ticker &#x25C6;</th>
+                    <th data-sort="insider_name" style="padding: 0.4rem 0.5rem; cursor: pointer; user-select: none; white-space: nowrap;">Insider &#x25C6;</th>
+                    <th data-sort="role_title" style="padding: 0.4rem 0.5rem; cursor: pointer; user-select: none; white-space: nowrap;">Title &#x25C6;</th>
+                    <th data-sort="position_pct" style="padding: 0.4rem 0.5rem; cursor: pointer; user-select: none; text-align: right; white-space: nowrap;">Size &#x25C6;</th>
+                    <th data-sort="signal_type" style="padding: 0.4rem 0.5rem; cursor: pointer; user-select: none; white-space: nowrap;">Signal &#x25C6;</th>
+                    <th data-sort="entry_date" style="padding: 0.4rem 0.5rem; cursor: pointer; user-select: none; white-space: nowrap;">Entry &#x25C6;</th>
+                    <th data-sort="exit_date" style="padding: 0.4rem 0.5rem; cursor: pointer; user-select: none; white-space: nowrap;">Exit &#x25C6;</th>
+                    <th data-sort="entry_price" style="padding: 0.4rem 0.5rem; cursor: pointer; user-select: none; text-align: right; white-space: nowrap;">Entry $ &#x25C6;</th>
+                    <th data-sort="exit_price" style="padding: 0.4rem 0.5rem; cursor: pointer; user-select: none; text-align: right; white-space: nowrap;">Exit $ &#x25C6;</th>
+                    <th data-sort="pnl" style="padding: 0.4rem 0.5rem; cursor: pointer; user-select: none; text-align: right; white-space: nowrap;">P&amp;L $ &#x25C6;</th>
+                    <th data-sort="pnl_pct" style="padding: 0.4rem 0.5rem; cursor: pointer; user-select: none; text-align: right; white-space: nowrap;">P&amp;L % &#x25C6;</th>
+                    <th data-sort="hold_days" style="padding: 0.4rem 0.5rem; cursor: pointer; user-select: none; text-align: right; white-space: nowrap;">TDs &#x25C6;</th>
+                </tr>
+            </thead>
+            <tbody id="trade-tbody"></tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Methodology -->
+<details style="margin-bottom: 2rem;">
+    <summary style="cursor: pointer; color: var(--text-secondary); font-size: 0.9rem; padding: 0.5rem 0; user-select: none;">
+        Methodology &amp; Caveats
+    </summary>
+    <div class="card" style="padding: 1rem; margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">
+        <p><strong style="color: var(--text-primary);">Temporal Scoring:</strong> Each insider's tier and skill score are computed using only data available <em>before</em> the transaction date. No future outcomes leak into classification. This ensures the backtest reflects real-world signal quality.</p>
+        <p><strong style="color: var(--text-primary);">Capital Constraints:</strong> Starting with ${{ "{:,.0f}".format(metrics.initial_cash) }}. Position sizing, margin, and idle-cash parking follow your configured settings — see .env.example. When cash runs out, signals are skipped.</p>
+        <p><strong style="color: var(--text-primary);">Hold Period:</strong> Positions are held for 60 trading days, then sold at market close. No early exits, no stop losses.</p>
+        <p><strong style="color: var(--text-primary);">Caveats:</strong></p>
+        <ul>
+            <li>Universe covers the ticker lists you configure — see form4lab/data/universes. Results on any fixed list carry survivorship bias.</li>
+            <li>No transaction costs, slippage, or bid-ask spreads modeled</li>
+            <li>Backtests spanning sharp crashes and recoveries (e.g. 2020) can inflate returns relative to calmer periods</li>
+            <li>Past performance does not guarantee future results</li>
+        </ul>
+    </div>
+</details>
+
+<!-- Plotly chart script -->
+<script>
+(function() {
+    var curveData = {{ equity_curve | tojson }};
+    if (!curveData || curveData.length === 0) return;
+
+    var dates = curveData.map(function(d) { return d.date; });
+    var portfolio = curveData.map(function(d) { return d.portfolio_value; });
+    var spy = curveData.map(function(d) { return d.spy_value; });
+
+    var traces = [
+        {
+            x: dates,
+            y: portfolio,
+            name: 'Strategy Portfolio',
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: '#2563eb', width: 2 },
+            fill: 'tonexty',
+            fillcolor: 'rgba(37, 99, 235, 0.05)',
+        },
+        {
+            x: dates,
+            y: spy,
+            name: 'S&P 500 (Buy & Hold)',
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: '#6b7280', width: 1.5, dash: 'dash' },
+        },
+    ];
+
+    var layout = {
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: '#8b949e', size: 12 },
+        margin: { l: 60, r: 20, t: 10, b: 40 },
+        xaxis: {
+            gridcolor: 'rgba(139,148,158,0.1)',
+            linecolor: 'rgba(139,148,158,0.2)',
+        },
+        yaxis: {
+            gridcolor: 'rgba(139,148,158,0.1)',
+            linecolor: 'rgba(139,148,158,0.2)',
+            tickprefix: '$',
+            tickformat: ',.0f',
+        },
+        legend: {
+            x: 0.02, y: 0.98,
+            bgcolor: 'rgba(0,0,0,0)',
+            font: { size: 11 },
+        },
+        hovermode: 'x unified',
+    };
+
+    Plotly.newPlot('equity-chart', traces, layout, {
+        responsive: true,
+        displayModeBar: false,
+    });
+})();
+</script>
+
+<script>
+(function() {
+    var curveData = {{ equity_curve | tojson }};
+    if (!curveData || curveData.length === 0) return;
+    if (curveData[0].pct_invested === undefined) return;
+
+    var dates = curveData.map(function(d) { return d.date; });
+    var pctInvested = curveData.map(function(d) { return d.pct_invested * 100; });
+    var numPositions = curveData.map(function(d) { return d.num_positions; });
+
+    var traces = [
+        {
+            x: dates,
+            y: pctInvested,
+            name: '% Invested',
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: '#7c3aed', width: 1.5 },
+            fill: 'tozeroy',
+            fillcolor: 'rgba(124, 58, 237, 0.15)',
+            customdata: numPositions,
+            hovertemplate: '%{y:.0f}% invested<br>%{customdata} position(s)<extra></extra>',
+        },
+    ];
+
+    var layout = {
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: '#8b949e', size: 12 },
+        margin: { l: 50, r: 20, t: 10, b: 40 },
+        xaxis: {
+            gridcolor: 'rgba(139,148,158,0.1)',
+            linecolor: 'rgba(139,148,158,0.2)',
+        },
+        yaxis: {
+            gridcolor: 'rgba(139,148,158,0.1)',
+            linecolor: 'rgba(139,148,158,0.2)',
+            ticksuffix: '%',
+            range: [0, Math.min(Math.max.apply(null, pctInvested) * 1.1, 150)],
+        },
+        hovermode: 'x unified',
+        showlegend: false,
+    };
+
+    Plotly.newPlot('invested-chart', traces, layout, {
+        responsive: true,
+        displayModeBar: false,
+    });
+})();
+</script>
+
+<script>
+(function() {
+    var trades = {{ trade_log | tojson }};
+    if (!trades || trades.length === 0) return;
+
+    var sortCol = 'exit_date';
+    var sortAsc = false;
+    var tbody = document.getElementById('trade-tbody');
+    var countEl = document.getElementById('trade-count');
+
+    var signalLabels = {
+        'cluster_buy': { text: 'CLUSTER', bg: '#1f6feb' },
+    };
+
+    function createBadge(signalType) {
+        var info = signalLabels[signalType];
+        if (!info) {
+            var span = document.createElement('span');
+            span.textContent = signalType;
+            return span;
+        }
+        var badge = document.createElement('span');
+        badge.textContent = info.text;
+        badge.style.cssText = 'background:' + info.bg + ';color:#fff;padding:1px 6px;border-radius:4px;font-size:0.65rem;font-weight:600;';
+        return badge;
+    }
+
+    function createCell(text, style) {
+        var td = document.createElement('td');
+        td.style.cssText = 'padding:0.35rem 0.5rem;' + (style || '');
+        td.textContent = text;
+        return td;
+    }
+
+    function getFiltered() {
+        var ticker = document.getElementById('ticker-search').value.toUpperCase();
+        var outcome = document.getElementById('outcome-filter').value;
+
+        return trades.filter(function(t) {
+            if (ticker && t.ticker.indexOf(ticker) === -1) return false;
+            if (outcome === 'winners' && (t.pnl === null || t.pnl <= 0)) return false;
+            if (outcome === 'losers' && (t.pnl === null || t.pnl >= 0)) return false;
+            return true;
+        });
+    }
+
+    function render() {
+        var filtered = getFiltered();
+
+        filtered.sort(function(a, b) {
+            var va = a[sortCol], vb = b[sortCol];
+            if (va === null || va === undefined) va = '';
+            if (vb === null || vb === undefined) vb = '';
+            if (va < vb) return sortAsc ? -1 : 1;
+            if (va > vb) return sortAsc ? 1 : -1;
+            return 0;
+        });
+
+        countEl.textContent = 'Showing ' + filtered.length + ' of ' + trades.length + ' trades';
+
+        // Clear existing rows
+        while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+
+        for (var i = 0; i < filtered.length; i++) {
+            var t = filtered[i];
+            var pnlColor = t.pnl > 0 ? 'var(--positive-color)' : (t.pnl < 0 ? 'var(--negative-color)' : 'var(--text-secondary)');
+            var tr = document.createElement('tr');
+
+            // Ticker (linked to company page)
+            var tickerTd = document.createElement('td');
+            tickerTd.style.cssText = 'padding:0.35rem 0.5rem;font-weight:600;';
+            var tickerLink = document.createElement('a');
+            tickerLink.href = '/company/' + encodeURIComponent(t.ticker);
+            tickerLink.textContent = t.ticker;
+            tickerLink.style.cssText = 'color:var(--link-color, var(--link-color));text-decoration:none;';
+            tickerTd.appendChild(tickerLink);
+            tr.appendChild(tickerTd);
+
+            // Insider name
+            tr.appendChild(createCell(t.insider_name || '\u2014', 'font-size:0.75rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'));
+
+            // Role title
+            tr.appendChild(createCell(t.role_title || '\u2014', 'font-size:0.75rem;color:var(--text-secondary);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'));
+
+            // Position size %
+            var sizeText = t.position_pct ? (t.position_pct * 100).toFixed(0) + '%' : '\u2014';
+            var sizeColor = t.position_pct >= 0.20 ? 'var(--positive-color)' : 'var(--text-primary)';
+            tr.appendChild(createCell(sizeText, 'text-align:right;color:' + sizeColor + ';font-weight:600;'));
+
+            // Signal badge
+            var signalTd = document.createElement('td');
+            signalTd.style.cssText = 'padding:0.35rem 0.5rem;';
+            signalTd.appendChild(createBadge(t.signal_type));
+            tr.appendChild(signalTd);
+
+            // Entry date
+            tr.appendChild(createCell(t.entry_date, ''));
+
+            // Exit date (with force-closed badge)
+            var exitTd = document.createElement('td');
+            exitTd.style.cssText = 'padding:0.35rem 0.5rem;';
+            exitTd.textContent = t.exit_date || '\u2014';
+            if (t.force_closed) {
+                var fc = document.createElement('span');
+                fc.textContent = ' FC';
+                fc.title = 'Force closed at last available price';
+                fc.style.cssText = 'color:var(--text-secondary);font-size:0.65rem;';
+                exitTd.appendChild(fc);
+            }
+            tr.appendChild(exitTd);
+
+            // Entry price
+            tr.appendChild(createCell(t.entry_price !== null ? '$' + t.entry_price.toFixed(2) : '\u2014', 'text-align:right;'));
+
+            // Exit price
+            tr.appendChild(createCell(t.exit_price !== null ? '$' + t.exit_price.toFixed(2) : '\u2014', 'text-align:right;'));
+
+            // PnL $
+            var pnlText = t.pnl !== null ? (t.pnl >= 0 ? '+' : '') + '$' + Math.round(t.pnl).toLocaleString() : '\u2014';
+            tr.appendChild(createCell(pnlText, 'text-align:right;color:' + pnlColor + ';font-weight:600;'));
+
+            // PnL %
+            var pctText = t.pnl_pct !== null ? (t.pnl_pct >= 0 ? '+' : '') + (t.pnl_pct * 100).toFixed(1) + '%' : '\u2014';
+            tr.appendChild(createCell(pctText, 'text-align:right;color:' + pnlColor + ';'));
+
+            // Hold days
+            tr.appendChild(createCell(t.hold_days || '\u2014', 'text-align:right;'));
+
+            tbody.appendChild(tr);
+        }
+    }
+
+    // Column sort click handlers
+    var headers = document.querySelectorAll('#trade-table th[data-sort]');
+    for (var h = 0; h < headers.length; h++) {
+        headers[h].addEventListener('click', function() {
+            var col = this.getAttribute('data-sort');
+            if (sortCol === col) {
+                sortAsc = !sortAsc;
+            } else {
+                sortCol = col;
+                sortAsc = true;
+            }
+            render();
+        });
+    }
+
+    // Filter handlers
+    document.getElementById('ticker-search').addEventListener('input', render);
+    document.getElementById('outcome-filter').addEventListener('change', render);
+
+    render();
+})();
+</script>
+
+{% else %}
+<!-- No data state -->
+<div style="text-align: center; padding: 4rem 2rem;">
+    <h2 style="color: var(--text-secondary);">Performance Data Not Available</h2>
+    <p style="color: var(--text-secondary); font-size: 0.9rem;">
+        Regenerate the static export if you produce one, or run the
+        <code>simulate-portfolio</code> CLI command directly.
+    </p>
+</div>
+{% endif %}
+{% endblock %}

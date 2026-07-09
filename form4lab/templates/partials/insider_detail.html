@@ -1,0 +1,113 @@
+{% if insider %}
+<div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
+
+    <!-- Mini Score Breakdown -->
+    {% if score %}
+    <div style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 0.75rem;">
+        <div>
+            <span style="color: var(--text-secondary); font-size: 0.75rem;">Tier</span>
+            <div>
+                {% set tier = score.credibility_tier %}
+                {% include "partials/score_badge.html" %}
+            </div>
+        </div>
+        <div>
+            <span style="color: var(--text-secondary); font-size: 0.75rem;">Skill Score</span>
+            <div style="font-weight: 600;">{{ "%.3f"|format(score.skill_score) }}</div>
+        </div>
+        <div>
+            <span style="color: var(--text-secondary); font-size: 0.75rem;">Hit Rate</span>
+            <div style="font-weight: 600;">
+                {% if score.bayesian_hit_rate is not none %}
+                {{ "%.1f"|format(score.bayesian_hit_rate * 100) }}%
+                {% else %}N/A{% endif %}
+            </div>
+        </div>
+        <div>
+            <span style="color: var(--text-secondary); font-size: 0.75rem;">Excess Return</span>
+            <div style="font-weight: 600;">
+                {% if score.shrunk_excess_return is not none %}
+                <span class="{{ 'positive' if score.shrunk_excess_return >= 0 else 'negative' }}">
+                    {{ "%+.1f"|format(score.shrunk_excess_return * 100) }}%
+                </span>
+                {% else %}N/A{% endif %}
+            </div>
+        </div>
+        <div>
+            <span style="color: var(--text-secondary); font-size: 0.75rem;">Confidence</span>
+            <div style="font-weight: 600;">
+                {% if score.confidence_above_baseline is not none %}
+                {{ "%.1f"|format(score.confidence_above_baseline * 100) }}%
+                {% else %}N/A{% endif %}
+            </div>
+        </div>
+        <div>
+            <span style="color: var(--text-secondary); font-size: 0.75rem;">Buys</span>
+            <div style="font-weight: 600;">{{ score.num_discretionary_buys }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Trades -->
+    {% if recent_trades %}
+    <div style="margin-bottom: 0.75rem;">
+        <span style="color: var(--text-secondary); font-size: 0.8rem; font-weight: 600;">Recent Trades</span>
+        <table style="margin-top: 0.25rem; font-size: 0.85rem;">
+            <thead>
+                <tr>
+                    <th style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Date</th>
+                    <th style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Company</th>
+                    <th style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Value</th>
+                    <th style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">60d Excess</th>
+                    <th style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Result</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn, outcome, company in recent_trades %}
+                <tr>
+                    <td style="padding: 0.25rem 0.5rem; white-space: nowrap;">{{ txn.transaction_date }}</td>
+                    <td style="padding: 0.25rem 0.5rem;">
+                        <a href="/company/{{ company.ticker or '' }}" style="color: var(--link-color); text-decoration: none; font-size: 0.85rem;"
+                           onclick="event.stopPropagation();">
+                            {{ company.ticker or company.name }}
+                        </a>
+                    </td>
+                    <td style="padding: 0.25rem 0.5rem;">{{ "$" + "{:,.0f}".format(txn.total_value) if txn.total_value else "--" }}</td>
+                    <td style="padding: 0.25rem 0.5rem;">
+                        {% if outcome and outcome.excess_return_60d is not none %}
+                        <span class="{{ 'positive' if outcome.excess_return_60d >= 0 else 'negative' }}">
+                            {{ "%+.1f"|format(outcome.excess_return_60d * 100) }}%
+                        </span>
+                        {% else %}
+                        <span style="color: var(--text-secondary);">--</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.25rem 0.5rem;">
+                        {% if outcome and outcome.hit_60d is not none %}
+                            {% if outcome.hit_60d %}
+                            <span class="positive" style="font-weight: 600; font-size: 0.8rem;">HIT</span>
+                            {% else %}
+                            <span class="negative" style="font-weight: 600; font-size: 0.8rem;">MISS</span>
+                            {% endif %}
+                        {% else %}
+                        <span style="color: var(--text-secondary);">--</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Link to full profile -->
+    <div style="text-align: right;">
+        <a href="/insider/{{ insider.cik }}" style="color: var(--link-color); text-decoration: none; font-size: 0.85rem;"
+           onclick="event.stopPropagation();">
+            View Full Profile &rarr;
+        </a>
+    </div>
+</div>
+{% else %}
+<p style="color: var(--text-secondary); text-align: center; padding: 1rem; font-size: 0.9rem;">Insider details not available.</p>
+{% endif %}

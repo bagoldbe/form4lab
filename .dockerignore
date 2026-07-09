@@ -1,0 +1,12 @@
+.venv/
+.git/
+__pycache__/
+*.py[cod]
+*.db
+.env
+scripts/leak_audit.local
+tests/
+.superpowers/
+docs/
+analysis/
+.pytest_cache/

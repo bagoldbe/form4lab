@@ -1,0 +1,22 @@
+# scripts/leak_audit.local — operator-private leak patterns
+#
+# Copy this file to `scripts/leak_audit.local` (which is gitignored) and add the
+# patterns specific to YOUR deployment. leak_audit.py loads them and hard-fails
+# on any match, in addition to the generic secret shapes it ships with.
+#
+# WHY THIS LIVES OUTSIDE THE COMMITTED SCRIPT: the list of things you are hiding
+# is itself a map of what you are hiding. If you type your internal codenames or
+# proprietary terms into the committed, world-readable leak_audit.py, that file
+# becomes the very disclosure the audit exists to prevent. Keep them here.
+#
+# One Python regex per line. Blank lines and lines starting with '#' are ignored.
+# Matching is case-insensitive.
+#
+# Put here (examples — REPLACE with your own; these are illustrative placeholders):
+#   my-internal-codename
+#   acme-strategy-v2
+#   \bMYORG\b
+#   private-host\.internal\.example
+#   internal-metric-name          # a naming pattern specific to your project
+#   0\.0177                       # a specific tuned constant
+#   OldRotatedCredentialString    # a rotated-but-still-sensitive secret

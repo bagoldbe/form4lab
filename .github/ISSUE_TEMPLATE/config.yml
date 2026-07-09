@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Investment / "will this make money" / strategy questions
+    url: https://github.com/bagoldbe/form4lab/blob/main/DISCLAIMER.md
+    about: This project is not investment advice and this is not the place to debug, tune, or validate your own strategy — read the disclaimer before opening an issue.

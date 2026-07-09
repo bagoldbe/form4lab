@@ -1,0 +1,185 @@
+<div style="margin-bottom: 2rem;">
+    <h3 style="margin-bottom: 1rem;">Paper Portfolio</h3>
+
+    {% if not alpaca_enabled %}
+    <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; color: var(--text-secondary);">
+        Paper trading is not enabled. Set <code>ALPACA_ENABLED=true</code> in your environment.
+    </div>
+    {% else %}
+
+    {% if account %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; text-align: center;">
+            <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.25rem;">Equity</div>
+            <div style="font-size: 1.3rem; font-weight: 600;">${{ "{:,.0f}".format(account.equity) }}</div>
+        </div>
+        <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; text-align: center;">
+            <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.25rem;">Cash</div>
+            <div style="font-size: 1.3rem; font-weight: 600;">${{ "{:,.0f}".format(account.cash) }}</div>
+        </div>
+        <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; text-align: center;">
+            <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.25rem;">Buying Power</div>
+            <div style="font-size: 1.3rem; font-weight: 600;">${{ "{:,.0f}".format(account.buying_power) }}</div>
+        </div>
+        <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; text-align: center;">
+            <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.25rem;">Open Positions</div>
+            <div style="font-size: 1.3rem; font-weight: 600;">{{ open_positions | length }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div style="margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+            <h4 style="margin: 0;">Equity vs SPY benchmark</h4>
+            <span style="font-size: 0.85rem; color: var(--text-secondary);">
+                Portfolio <strong><span id="equity-pf-return">—</span></strong>
+                &nbsp;·&nbsp; SPY <span id="equity-bench-return">—</span>
+                &nbsp;·&nbsp; alpha <span id="equity-alpha" style="font-weight: 600;">—</span>
+            </span>
+        </div>
+        <div id="equity-chart" style="width: 100%; height: 300px; background: var(--bg-secondary); border-radius: 8px;"></div>
+    </div>
+    <script>
+    (function() {
+        if (!window.fetch) return;
+        fetch('/api/v1/performance/equity-vs-benchmark?period=3M')
+            .then(function(r) { return r.json(); })
+            .then(function(payload) {
+                if (typeof initEquityChart === 'function') initEquityChart('equity-chart', payload);
+                var s = payload && payload.summary;
+                if (!s || s.portfolio_return_pct === undefined) return;
+                var pfEl = document.getElementById('equity-pf-return');
+                var bnEl = document.getElementById('equity-bench-return');
+                var alEl = document.getElementById('equity-alpha');
+                var fmt = function(n) { return (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; };
+                if (pfEl) pfEl.textContent = fmt(s.portfolio_return_pct);
+                if (bnEl) bnEl.textContent = fmt(s.benchmark_return_pct);
+                if (alEl) {
+                    alEl.textContent = (s.alpha_pp >= 0 ? '+' : '') + s.alpha_pp.toFixed(2) + 'pp';
+                    alEl.style.color = s.alpha_pp >= 0 ? 'var(--positive-color)' : 'var(--negative-color)';
+                }
+            })
+            .catch(function(e) { console.error('equity chart fetch failed', e); });
+    })();
+    </script>
+
+    {% if open_positions %}
+    <h4 style="margin-bottom: 0.5rem;">Open Positions</h4>
+    <div style="overflow-x: auto; margin-bottom: 1.5rem;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
+                    <th style="text-align: left; padding: 0.5rem;">Ticker</th>
+                    <th style="text-align: left; padding: 0.5rem;">Insider</th>
+                    <th style="text-align: left; padding: 0.5rem;">Role</th>
+                    <th style="text-align: right; padding: 0.5rem;">Shares</th>
+                    <th style="text-align: right; padding: 0.5rem;">Entry</th>
+                    <th style="text-align: right; padding: 0.5rem;">Entry Date</th>
+                    <th style="text-align: right; padding: 0.5rem;">Exit Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pos in open_positions %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.5rem; font-weight: 600;">{{ pos.symbol }}</td>
+                    <td style="padding: 0.5rem;">{{ pos.insider_name }}</td>
+                    <td style="padding: 0.5rem; color: var(--text-secondary);">{{ pos.insider_role }}</td>
+                    <td style="padding: 0.5rem; text-align: right;">{{ "{:,.1f}".format(pos.shares) if pos.shares else "pending" }}</td>
+                    <td style="padding: 0.5rem; text-align: right;">{{ "${:,.2f}".format(pos.entry_price) if pos.entry_price else "pending" }}</td>
+                    <td style="padding: 0.5rem; text-align: right;">{{ pos.entry_date.strftime("%b %d") if pos.entry_date else "—" }}</td>
+                    <td style="padding: 0.5rem; text-align: right;">{{ pos.exit_target_date.strftime("%b %d") if pos.exit_target_date else "—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary); margin-bottom: 1rem;">No open positions.</p>
+    {% endif %}
+
+    {% if closed_positions %}
+    <details style="margin-bottom: 1.5rem;">
+        <summary style="cursor: pointer; font-weight: 600; margin-bottom: 0.5rem;">
+            Closed Positions ({{ closed_positions | length }})
+        </summary>
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
+                        <th style="text-align: left; padding: 0.5rem;">Ticker</th>
+                        <th style="text-align: left; padding: 0.5rem;">Insider</th>
+                        <th style="text-align: right; padding: 0.5rem;">Entry</th>
+                        <th style="text-align: right; padding: 0.5rem;">Exit</th>
+                        <th style="text-align: right; padding: 0.5rem;">P&L</th>
+                        <th style="text-align: right; padding: 0.5rem;">Return</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pos in closed_positions %}
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 0.5rem; font-weight: 600;">{{ pos.symbol }}</td>
+                        <td style="padding: 0.5rem;">{{ pos.insider_name }}</td>
+                        <td style="padding: 0.5rem; text-align: right;">${{ "{:,.2f}".format(pos.entry_price) if pos.entry_price else "—" }}</td>
+                        <td style="padding: 0.5rem; text-align: right;">${{ "{:,.2f}".format(pos.exit_price) if pos.exit_price else "—" }}</td>
+                        <td style="padding: 0.5rem; text-align: right; color: {{ '#4ade80' if pos.pnl and pos.pnl > 0 else '#f87171' if pos.pnl and pos.pnl < 0 else 'var(--text-secondary)' }};">
+                            {{ "${:,.0f}".format(pos.pnl) if pos.pnl else "—" }}
+                        </td>
+                        <td style="padding: 0.5rem; text-align: right; color: {{ '#4ade80' if pos.pnl_pct and pos.pnl_pct > 0 else '#f87171' if pos.pnl_pct and pos.pnl_pct < 0 else 'var(--text-secondary)' }};">
+                            {{ "{:+.1%}".format(pos.pnl_pct) if pos.pnl_pct else "—" }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% endif %}
+
+    {% if recent_orders %}
+    <details>
+        <summary style="cursor: pointer; font-weight: 600; margin-bottom: 0.5rem;">
+            Recent Orders ({{ recent_orders | length }})
+        </summary>
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
+                        <th style="text-align: left; padding: 0.5rem;">Time</th>
+                        <th style="text-align: left; padding: 0.5rem;">Symbol</th>
+                        <th style="text-align: left; padding: 0.5rem;">Side</th>
+                        <th style="text-align: left; padding: 0.5rem;">Type</th>
+                        <th style="text-align: right; padding: 0.5rem;">Amount</th>
+                        <th style="text-align: right; padding: 0.5rem;">Fill Price</th>
+                        <th style="text-align: left; padding: 0.5rem;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in recent_orders %}
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 0.5rem;">{{ order.submitted_at.strftime("%b %d %H:%M") if order.submitted_at else "—" }}</td>
+                        <td style="padding: 0.5rem; font-weight: 600;">{{ order.symbol }}</td>
+                        <td style="padding: 0.5rem; color: {{ '#4ade80' if order.side == 'buy' else '#f87171' }};">
+                            {{ order.side | upper }}
+                        </td>
+                        <td style="padding: 0.5rem;">{{ order.order_type }}</td>
+                        <td style="padding: 0.5rem; text-align: right;">
+                            {% if order.notional %}${{ "{:,.0f}".format(order.notional) }}{% elif order.qty %}{{ order.qty }} shares{% else %}—{% endif %}
+                        </td>
+                        <td style="padding: 0.5rem; text-align: right;">{{ "${:,.2f}".format(order.filled_avg_price) if order.filled_avg_price else "—" }}</td>
+                        <td style="padding: 0.5rem;">
+                            <span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;
+                                background: {{ '#22c55e20' if order.status == 'filled' else '#f59e0b20' if order.status == 'submitted' else '#ef444420' }};
+                                color: {{ '#4ade80' if order.status == 'filled' else '#f59e0b' if order.status == 'submitted' else '#f87171' }};">
+                                {{ order.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% endif %}
+
+    {% endif %}
+</div>

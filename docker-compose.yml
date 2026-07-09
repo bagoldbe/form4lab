@@ -1,0 +1,83 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      # Dev-only credentials, fine for a local throwaway Postgres. Override
+      # POSTGRES_PASSWORD (and put a real secret behind it) before pointing
+      # this compose file at anything you'd mind losing.
+      POSTGRES_DB: form4lab
+      POSTGRES_USER: form4lab
+      POSTGRES_PASSWORD: form4lab
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U form4lab"]
+      interval: 5s
+      retries: 5
+
+  web:
+    build: .
+    command: web
+    environment:
+      SEC_IDENTITY: ${SEC_IDENTITY:?set SEC_IDENTITY to your name + contact email}
+      DATABASE_URL: postgresql://form4lab:form4lab@db:5432/form4lab
+      STRATEGY_PATH: ${STRATEGY_PATH:-form4lab.strategies.cluster_buy:ClusterBuyStrategy}
+      # web must NOT run the background scheduler — the `scheduler` service
+      # below owns it. If both had SCHEDULER_ENABLED=true, every job
+      # (ingest, outcomes, scoring, exit checks, order sync) would double-fire.
+      SCHEDULER_ENABLED: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      # Drop-in user strategies: a strategy module placed on the host under
+      # ./strategies (e.g. ./strategies/my_strategy.py) shows up in the
+      # container at /app/strategies/my_strategy.py. Because the image
+      # installs form4lab in editable mode (see Dockerfile), /app is on
+      # sys.path, so it's importable with no PYTHONPATH setup — point
+      # STRATEGY_PATH at it, e.g.
+      # STRATEGY_PATH=strategies.my_strategy:MyStrategy. See .env.example.
+      - ./strategies:/app/strategies
+    healthcheck:
+      # python:3.11-slim has no curl; a stdlib-only one-liner avoids adding
+      # a dependency just for the healthcheck.
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/partials/recommendations').status==200 else 1)"]
+      interval: 10s
+      retries: 5
+      start_period: 20s
+
+  scheduler:
+    build: .
+    command: scheduler
+    environment:
+      SEC_IDENTITY: ${SEC_IDENTITY:?set SEC_IDENTITY to your name + contact email}
+      DATABASE_URL: postgresql://form4lab:form4lab@db:5432/form4lab
+      STRATEGY_PATH: ${STRATEGY_PATH:-form4lab.strategies.cluster_buy:ClusterBuyStrategy}
+      SCHEDULER_ENABLED: "true"
+    # Run tini as PID 1 so SIGTERM from `docker stop` is forwarded and
+    # zombie processes are reaped — without it, PID 1 is the scheduler
+    # process itself, which is also fine given cli.py's SIGTERM handler, but
+    # `init: true` is the standard/robust way to guarantee signal delivery
+    # under any container runtime regardless of how PID 1 handles it.
+    init: true
+    depends_on:
+      db:
+        condition: service_healthy
+      # Waits for web, not just db, because web (not scheduler) runs
+      # `form4lab init-db`. Starting the scheduler as soon as db is healthy
+      # would risk it querying a not-yet-migrated schema.
+      web:
+        condition: service_healthy
+    volumes:
+      # Same bind mount as web, and for a stronger reason: the scheduler
+      # (not web) is what actually EXECUTES a STRATEGY_PATH-resolved custom
+      # strategy in the background (ingest_daily_filings_job ->
+      # generate_and_execute_alerts -> registry.get_active()). Without this
+      # mount, a custom strategy dropped into ./strategies would import fine
+      # in web (dashboard reads) but fail every scheduled run here.
+      - ./strategies:/app/strategies
+
+volumes:
+  pgdata: {}

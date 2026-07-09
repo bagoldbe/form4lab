@@ -1,0 +1,14 @@
+{% if alerts %}
+{% for item in alerts %}
+    {% set alert = item.alert if item is mapping else item %}
+    {% set insider = item.insider if item is mapping else none %}
+    {% set company = item.company if item is mapping else none %}
+    {% set score = item.score if item is mapping else none %}
+    {% include "partials/alert_card.html" %}
+{% endfor %}
+{% else %}
+<div class="card" style="text-align: center; padding: 3rem;">
+    <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 0.5rem;">No signals detected</p>
+    <p style="color: var(--text-secondary); font-size: 0.85rem;">Run a backfill to populate insider trading data, then generate signals.</p>
+</div>
+{% endif %}

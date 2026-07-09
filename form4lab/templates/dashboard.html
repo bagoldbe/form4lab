@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - form4lab{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h2 style="margin: 0;">form4lab</h2>
+</div>
+
+<!-- Stats Banner (tradeable-signal scorecard) -->
+<div id="action-summary"
+     hx-get="/partials/action-summary"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+    <div style="text-align: center; padding: 1rem;">
+        <span class="spinner"></span> Loading summary...
+    </div>
+</div>
+
+<!-- Paper Portfolio -->
+<div id="paper-portfolio"
+     hx-get="/partials/portfolio"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+    <div style="text-align: center; padding: 1rem;">
+        <span class="spinner"></span> Loading portfolio...
+    </div>
+</div>
+
+<!-- Tradeable signals (annotated with drawdown status) -->
+<div id="recommendations"
+     hx-get="/partials/recommendations"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+    <div style="text-align: center; padding: 1rem;">
+        <span class="spinner"></span> Loading recommendations...
+    </div>
+</div>
+
+<!-- Sell Warnings -->
+<div id="sell-warnings"
+     hx-get="/partials/sell-warnings"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+    <div style="text-align: center; padding: 1rem;">
+        <span class="spinner"></span> Loading sell warnings...
+    </div>
+</div>
+
+<!-- Recent Activity (buys + sells) -->
+<div id="this-week"
+     hx-get="/partials/this-week"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+    <div style="text-align: center; padding: 1rem;">
+        <span class="spinner"></span> Loading recent activity...
+    </div>
+</div>
+{% endblock %}
